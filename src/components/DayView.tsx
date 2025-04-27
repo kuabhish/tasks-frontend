@@ -1,53 +1,76 @@
 import React from 'react';
-import { format, addHours, startOfDay, endOfDay, isWithinInterval, differenceInMinutes } from 'date-fns';
+import {
+  format,
+  addHours,
+  startOfDay,
+  endOfDay,
+  isWithinInterval,
+  differenceInMinutes,
+} from 'date-fns';
 import useTimeStore from '../store/timeStore';
-import { Task } from '../types';
+import { TimeEntry } from '../types/task';
 import Badge from './ui/Badge';
 
 interface DayViewProps {
   date: Date;
-  onEditTask: (task: Task) => void;
+  onEditTimeEntry: (timeEntry: TimeEntry) => void;
 }
 
-const DayView: React.FC<DayViewProps> = ({ date, onEditTask }) => {
-  const tasks = useTimeStore((state) => state.tasks);
+const DayView: React.FC<DayViewProps> = ({ date, onEditTimeEntry }) => {
+  const timeEntries = useTimeStore((state) => state.timeEntries);
   const categories = useTimeStore((state) => state.categories);
 
-  // Create hour slots for the day (24 hours)
-  const hours = Array.from({ length: 24 }).map((_, index) => {
-    const hour = addHours(startOfDay(date), index);
-    return {
-      hour,
-      label: format(hour, 'h a'),
-    };
+  // Adjust date to UTC
+  const utcDate = new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000);
+
+  console.log('DayView date (UTC):', utcDate.toISOString());
+  console.log('DayView timeEntries:', timeEntries);
+
+  const entriesForDay = timeEntries.filter((entry) => {
+    const dayStart = startOfDay(utcDate);
+    const dayEnd = endOfDay(utcDate);
+    const startTime = new Date(entry.startTime);
+    const endTime = new Date(entry.endTime);
+
+    console.log(`Processing entry ${entry.id}:`, {
+      rawStartTime: entry.startTime,
+      rawEndTime: entry.endTime,
+      parsedStartTime: startTime.toISOString(),
+      parsedEndTime: endTime.toISOString(),
+      dayStart: dayStart.toISOString(),
+      dayEnd: dayEnd.toISOString(),
+    });
+
+    const isInDay =
+      isWithinInterval(startTime, { start: dayStart, end: dayEnd }) ||
+      isWithinInterval(endTime, { start: dayStart, end: dayEnd }) ||
+      (startTime <= dayStart && endTime >= dayEnd);
+
+    console.log(`Entry ${entry.id} isInDay:`, isInDay);
+    return isInDay;
   });
 
-  // Get tasks for the current day
-  const tasksForDay = tasks.filter((task) => {
-    const dayStart = startOfDay(date);
-    const dayEnd = endOfDay(date);
-
+  const getCategoryForEntry = (entry: TimeEntry) => {
+    const tag = entry.subtask?.tags?.[0] || 'default';
     return (
-      isWithinInterval(task.startTime, { start: dayStart, end: dayEnd }) ||
-      (task.endTime && isWithinInterval(task.endTime, { start: dayStart, end: dayEnd })) ||
-      (task.endTime && task.startTime <= dayStart && task.endTime >= dayEnd)
+      categories.find((c) => c.name.toLowerCase() === tag.toLowerCase()) || {
+        id: 'default',
+        name: 'Default',
+        color: '#6B7280',
+      }
     );
-  });
-
-  const getCategoryForTask = (task: Task) => {
-    return categories.find((c) => c.id === task.category) || { id: '', name: 'Unknown', color: '#gray' };
   };
 
-  // Calculate task position and height
-  const calculateTaskStyle = (task: Task) => {
-    const dayStart = startOfDay(date);
-    const startMinutes = differenceInMinutes(task.startTime, dayStart);
-    const endMinutes = task.endTime ? differenceInMinutes(task.endTime, dayStart) : startMinutes + 60; // Default to 1 hour if no endTime
+  const calculateEntryStyle = (entry: TimeEntry) => {
+    const dayStart = startOfDay(utcDate);
+    const startTime = new Date(entry.startTime);
+    const endTime = new Date(entry.endTime);
+    const startMinutes = differenceInMinutes(startTime, dayStart);
+    const endMinutes = differenceInMinutes(endTime, dayStart);
     const durationMinutes = endMinutes - startMinutes;
 
-    // Each hour is 80px tall, so 1 minute = 80/60 px
     const pixelsPerMinute = 80 / 60;
-    const top = startMinutes * pixelsPerMinute;
+    const top = Math.max(startMinutes * pixelsPerMinute, 0);
     const height = durationMinutes * pixelsPerMinute;
 
     return {
@@ -59,12 +82,13 @@ const DayView: React.FC<DayViewProps> = ({ date, onEditTask }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-        <h2 className="text-lg font-medium">{format(date, 'EEEE, MMMM d, yyyy')}</h2>
+        <h2 className="text-lg font-medium">{format(utcDate, 'EEEE, MMMM d, yyyy')}</h2>
       </div>
 
-      <div className="relative" style={{ height: `${24 * 80}px` }}> {/* 24 hours * 80px per hour */}
-        {/* Hour Slots */}
-        {hours.map(({ hour, label }) => {
+      <div className="relative" style={{ height: `${24 * 80}px` }}>
+        {Array.from({ length: 24 }).map((_, index) => {
+          const hour = addHours(startOfDay(utcDate), index);
+          const label = format(hour, 'h a');
           const isCurrentHour =
             new Date().getHours() === hour.getHours() &&
             new Date().getDate() === hour.getDate() &&
@@ -88,42 +112,42 @@ const DayView: React.FC<DayViewProps> = ({ date, onEditTask }) => {
           );
         })}
 
-        {/* Tasks */}
         <div className="absolute top-0 left-20 right-0">
-          {tasksForDay.map((task) => {
-            const category = getCategoryForTask(task);
-            const style = calculateTaskStyle(task);
+          {entriesForDay.map((entry) => {
+            const category = getCategoryForEntry(entry);
+            const style = calculateEntryStyle(entry);
 
             return (
               <div
-                key={task.id}
+                key={entry.id}
                 className="absolute left-2 right-2 rounded-md text-sm shadow-sm cursor-pointer animate-fade-in overflow-hidden"
                 style={{
                   ...style,
                   backgroundColor: category.color,
-                  color: '#fff', // White text for contrast
+                  color: '#fff',
                   opacity: 0.9,
                 }}
-                onClick={() => onEditTask(task)}
+                onClick={() => onEditTimeEntry(entry)}
               >
                 <div className="p-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">{task.title}</span>
+                    <span className="font-medium">{entry.subtask?.title || 'Untitled'}</span>
                     <div className="text-xs">
-                      {format(task.startTime, 'h:mm a')} - {task.endTime && format(task.endTime, 'h:mm a')}
+                      {format(new Date(entry.startTime), 'h:mm a')} -{' '}
+                      {format(new Date(entry.endTime), 'h:mm a')}
                     </div>
                   </div>
 
-                  {task.tags && task.tags.length > 0 && (
+                  {entry.subtask?.tags && entry.subtask.tags.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {task.tags.slice(0, 3).map((tag) => (
+                      {entry.subtask.tags.slice(0, 3).map((tag) => (
                         <Badge key={tag} variant="default" className="text-xs bg-white bg-opacity-30 text-white">
                           {tag}
                         </Badge>
                       ))}
-                      {task.tags.length > 3 && (
+                      {entry.subtask.tags.length > 3 && (
                         <Badge variant="default" className="text-xs bg-white bg-opacity-30 text-white">
-                          +{task.tags.length - 3}
+                          +{entry.subtask.tags.length - 3}
                         </Badge>
                       )}
                     </div>

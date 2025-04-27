@@ -1,346 +1,334 @@
-import React, { useState } from 'react';
-import { Task } from '../types';
-import Input from './ui/Input';
-import Select from './ui/Select';
+import React, { useState, useEffect } from 'react';
 import Button from './ui/Button';
-import useTimeStore from '../store/timeStore';
-import { X } from 'lucide-react';
-import { format, addHours } from 'date-fns';
+import useAuthStore from '../store/authStore';
+import { fetchProjects } from '../utils/api';
+import { Project } from '../types/project';
 
 interface TaskFormProps {
-  initialTask?: Partial<Task>;
-  onSubmit: (task: Omit<Task, 'id'>) => void;
+  onSubmit: (data: any) => void;
   onCancel: () => void;
 }
 
-const TaskForm: React.FC<TaskFormProps> = ({
-  initialTask,
-  onSubmit,
-  onCancel,
-}) => {
-  const categories = useTimeStore((state) => state.categories);
-
-  // Initialize endTime to 1 hour after startTime if not provided
-  const [formData, setFormData] = useState<Partial<Task>>({
-    title: initialTask?.title || '',
-    description: initialTask?.description || '',
-    category: initialTask?.category || categories[0]?.id || '',
-    startTime: initialTask?.startTime || new Date(),
-    endTime: initialTask?.endTime || addHours(initialTask?.startTime || new Date(), 1),
-    completed: initialTask?.completed || false,
-    isRecurring: initialTask?.isRecurring || false,
-    recurringPattern: initialTask?.recurringPattern || undefined,
-    tags: initialTask?.tags || [],
-    color: initialTask?.color || undefined,
+const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel }) => {
+  const user = useAuthStore((state) => state.user);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    status: 'Not Started',
+    priority: 'Medium',
+    project_id: '',
+    category_id: '',
+    assigned_user_id: '',
+    assigned_team_id: '',
+    due_date: '',
+    is_recurring: false,
+    recurring_pattern: '',
+    tags: '',
+    estimated_duration: '',
+    actual_duration: '',
   });
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  const [newTag, setNewTag] = useState('');
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const response = await fetchProjects();
+        setProjects(response.data.data);
+      } catch (err) {
+        console.error('Failed to fetch projects:', err);
+      }
+    };
+    loadProjects();
+  }, []);
+
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!formData.title) newErrors.title = 'Title is required';
+    if (!formData.status) newErrors.status = 'Status is required';
+    if (!formData.project_id) newErrors.project_id = 'Project is required';
+    if (formData.estimated_duration && isNaN(Number(formData.estimated_duration))) {
+      newErrors.estimated_duration = 'Estimated duration must be a number';
+    }
+    if (formData.actual_duration && isNaN(Number(formData.actual_duration))) {
+      newErrors.actual_duration = 'Actual duration must be a number';
+    }
+    try {
+      if (formData.recurring_pattern) JSON.parse(formData.recurring_pattern);
+    } catch {
+      newErrors.recurring_pattern = 'Recurring pattern must be valid JSON';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
+    setFormData({
+      ...formData,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
-    }));
-
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const handleDateChange = (name: string, value: string) => {
-    try {
-      const newDate = new Date(value);
-      setFormData((prev) => ({ ...prev, [name]: newDate }));
-
-      if (errors[name]) {
-        setErrors((prev) => ({ ...prev, [name]: '' }));
-      }
-    } catch {
-      setErrors((prev) => ({ ...prev, [name]: 'Invalid date format' }));
-    }
-  };
-
-  const handleCheckboxChange = (name: string, checked: boolean) => {
-    setFormData((prev) => ({ ...prev, [name]: checked }));
-  };
-
-  const handleAddTag = () => {
-    if (newTag.trim() && !formData.tags?.includes(newTag.trim())) {
-      setFormData((prev) => ({
-        ...prev,
-        tags: [...(prev.tags || []), newTag.trim()],
-      }));
-      setNewTag('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      tags: prev.tags?.filter((tag) => tag !== tagToRemove) || [],
-    }));
+    });
+    setErrors({ ...errors, [name]: '' });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
 
-    // Validation
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.title?.trim()) {
-      newErrors.title = 'Title is required';
-    }
-
-    if (!formData.category) {
-      newErrors.category = 'Category is required';
-    }
-
-    if (!formData.startTime) {
-      newErrors.startTime = 'Start time is required';
-    }
-
-    if (!formData.endTime) {
-      newErrors.endTime = 'End time is required';
-    }
-
-    if (formData.endTime && formData.startTime && formData.endTime <= formData.startTime) {
-      newErrors.endTime = 'End time must be after start time';
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    // Submit the form
     onSubmit({
-      title: formData.title!,
-      description: formData.description,
-      category: formData.category!,
-      startTime: formData.startTime!,
-      endTime: formData.endTime!,
-      completed: formData.completed || false,
-      isRecurring: formData.isRecurring || false,
-      recurringPattern: formData.recurringPattern,
-      tags: formData.tags || [],
-      color: formData.color,
+      title: formData.title,
+      description: formData.description || undefined,
+      status: formData.status,
+      priority: formData.priority,
+      project_id: formData.project_id,
+      category_id: formData.category_id || undefined,
+      assigned_user_id: formData.assigned_user_id || undefined,
+      assigned_team_id: formData.assigned_team_id || undefined,
+      due_date: formData.due_date || undefined,
+      is_recurring: formData.is_recurring,
+      recurring_pattern: formData.recurring_pattern
+        ? JSON.parse(formData.recurring_pattern)
+        : undefined,
+      tags: formData.tags ? formData.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : undefined,
+      estimated_duration: formData.estimated_duration
+        ? Number(formData.estimated_duration)
+        : undefined,
+      actual_duration: formData.actual_duration ? Number(formData.actual_duration) : undefined,
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Input
-        label="Title"
-        name="title"
-        value={formData.title || ''}
-        onChange={handleChange}
-        placeholder="Task title"
-        fullWidth
-        error={errors.title}
-      />
-
       <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+          Task Title
+        </label>
+        <input
+          type="text"
+          name="title"
+          id="title"
+          value={formData.title}
+          onChange={handleChange}
+          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.title ? 'border-red-500' : ''
+            }`}
+          required
+        />
+        {errors.title && <p className="mt-1 text-sm text-red-500">{errors.title}</p>}
+      </div>
+      <div>
+        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
           Description
         </label>
         <textarea
-          id="description"
           name="description"
-          value={formData.description || ''}
+          id="description"
+          value={formData.description}
           onChange={handleChange}
-          placeholder="Task description"
-          className="w-full rounded-md border border-gray-300 py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          rows={3}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          rows={4}
         />
       </div>
-
-      <Select
-        label="Category"
-        name="category"
-        value={formData.category || ''}
-        onChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
-        options={categories.map((category) => ({
-          value: category.id,
-          label: category.name,
-        }))}
-        fullWidth
-        error={errors.category}
-      />
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 mb-1">
-            Start Time
-          </label>
-          <input
-            type="datetime-local"
-            id="startTime"
-            name="startTime"
-            value={formData.startTime ? format(formData.startTime, "yyyy-MM-dd'T'HH:mm") : ''}
-            onChange={(e) => handleDateChange('startTime', e.target.value)}
-            className="w-full rounded-md border border-gray-300 py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            required
-          />
-          {errors.startTime && (
-            <p className="mt-1 text-sm text-error-500">{errors.startTime}</p>
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
-            End Time
-          </label>
-          <input
-            type="datetime-local"
-            id="endTime"
-            name="endTime"
-            value={formData.endTime ? format(formData.endTime, "yyyy-MM-dd'T'HH:mm") : ''}
-            onChange={(e) => handleDateChange('endTime', e.target.value)}
-            className="w-full rounded-md border border-gray-300 py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            required
-          />
-          {errors.endTime && (
-            <p className="mt-1 text-sm text-error-500">{errors.endTime}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center">
-        <input
-          type="checkbox"
-          id="completed"
-          checked={formData.completed || false}
-          onChange={(e) => handleCheckboxChange('completed', e.target.checked)}
-          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-        />
-        <label htmlFor="completed" className="ml-2 block text-sm text-gray-700">
-          Mark as completed
-        </label>
-      </div>
-
-      <div className="flex items-center">
-        <input
-          type="checkbox"
-          id="isRecurring"
-          checked={formData.isRecurring || false}
-          onChange={(e) => handleCheckboxChange('isRecurring', e.target.checked)}
-          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-        />
-        <label htmlFor="isRecurring" className="ml-2 block text-sm text-gray-700">
-          This is a recurring task
-        </label>
-      </div>
-
-      {formData.isRecurring && (
-        <div className="ml-6 p-3 border border-gray-200 rounded-md bg-gray-50">
-          <Select
-            label="Recurring Type"
-            name="recurringType"
-            value={formData.recurringPattern?.type || 'daily'}
-            onChange={(value) =>
-              setFormData((prev) => ({
-                ...prev,
-                recurringPattern: {
-                  ...prev.recurringPattern,
-                  type: value as 'daily' | 'weekly' | 'monthly',
-                },
-              }))
-            }
-            options={[
-              { value: 'daily', label: 'Daily' },
-              { value: 'weekly', label: 'Weekly' },
-              { value: 'monthly', label: 'Monthly' },
-            ]}
-            fullWidth
-          />
-
-          {formData.recurringPattern?.type === 'weekly' && (
-            <div className="mt-3">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Repeat on
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
-                  <button
-                    key={day}
-                    type="button"
-                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${formData.recurringPattern?.days?.includes(index)
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    onClick={() => {
-                      const days = formData.recurringPattern?.days || [];
-                      const newDays = days.includes(index)
-                        ? days.filter((d) => d !== index)
-                        : [...days, index];
-
-                      setFormData((prev) => ({
-                        ...prev,
-                        recurringPattern: {
-                          ...prev.recurringPattern,
-                          days: newDays,
-                        },
-                      }));
-                    }}
-                  >
-                    {day[0]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       <div>
-        <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
-          Tags
-
+        <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+          Status
         </label>
-        <div className="flex">
-          <Input
-            id="tags"
-            value={newTag}
-            onChange={(e) => setNewTag(e.target.value)}
-            placeholder="Add a tag"
-            className="rounded-r-none"
-          />
-          <Button type="button" onClick={handleAddTag} className="rounded-l-none">
-            Add
-          </Button>
-        </div>
-        {formData.tags && formData.tags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {formData.tags.map((tag) => (
-              <div
-                key={tag}
-                className="bg-gray-100 text-gray-700 rounded-full px-3 py-1 text-sm flex items-center"
-              >
-                {tag}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveTag(tag)}
-                  className="ml-1 text-gray-500 hover:text-gray-700"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
+        <select
+          name="status"
+          id="status"
+          value={formData.status}
+          onChange={handleChange}
+          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.status ? 'border-red-500' : ''
+            }`}
+          required
+        >
+          <option value="Not Started">Not Started</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+        </select>
+        {errors.status && <p className="mt-1 text-sm text-red-500">{errors.status}</p>}
+      </div>
+      <div>
+        <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
+          Priority
+        </label>
+        <select
+          name="priority"
+          id="priority"
+          value={formData.priority}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        >
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+        </select>
+      </div>
+      <div>
+        <label htmlFor="project_id" className="block text-sm font-medium text-gray-700">
+          Project
+        </label>
+        <select
+          name="project_id"
+          id="project_id"
+          value={formData.project_id}
+          onChange={handleChange}
+          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.project_id ? 'border-red-500' : ''
+            }`}
+          required
+        >
+          <option value="">Select a project</option>
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.title}
+            </option>
+          ))}
+        </select>
+        {errors.project_id && <p className="mt-1 text-sm text-red-500">{errors.project_id}</p>}
+      </div>
+      <div>
+        <label htmlFor="category_id" className="block text-sm font-medium text-gray-700">
+          Category ID (Optional)
+        </label>
+        <input
+          type="text"
+          name="category_id"
+          id="category_id"
+          value={formData.category_id}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          placeholder="Category ID"
+        />
+      </div>
+      <div>
+        <label htmlFor="assigned_user_id" className="block text-sm font-medium text-gray-700">
+          Assigned User ID (Optional)
+        </label>
+        <input
+          type="text"
+          name="assigned_user_id"
+          id="assigned_user_id"
+          value={formData.assigned_user_id}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          placeholder="User ID"
+        />
+      </div>
+      <div>
+        <label htmlFor="assigned_team_id" className="block text-sm font-medium text-gray-700">
+          Assigned Team ID (Optional)
+        </label>
+        <input
+          type="text"
+          name="assigned_team_id"
+          id="assigned_team_id"
+          value={formData.assigned_team_id}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          placeholder="Team ID"
+        />
+      </div>
+      <div>
+        <label htmlFor="due_date" className="block text-sm font-medium text-gray-700">
+          Due Date (Optional)
+        </label>
+        <input
+          type="date"
+          name="due_date"
+          id="due_date"
+          value={formData.due_date}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        />
+      </div>
+      <div>
+        <label htmlFor="is_recurring" className="block text-sm font-medium text-gray-700">
+          Is Recurring
+        </label>
+        <input
+          type="checkbox"
+          name="is_recurring"
+          id="is_recurring"
+          checked={formData.is_recurring}
+          onChange={handleChange}
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <label htmlFor="recurring_pattern" className="block text-sm font-medium text-gray-700">
+          Recurring Pattern (JSON, Optional)
+        </label>
+        <textarea
+          name="recurring_pattern"
+          id="recurring_pattern"
+          value={formData.recurring_pattern}
+          onChange={handleChange}
+          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.recurring_pattern ? 'border-red-500' : ''
+            }`}
+          placeholder='{"interval": "weekly", "days": ["Monday"]}'
+          rows={4}
+        />
+        {errors.recurring_pattern && (
+          <p className="mt-1 text-sm text-red-500">{errors.recurring_pattern}</p>
         )}
       </div>
-
-      <div className="flex justify-end space-x-3 pt-4">
+      <div>
+        <label htmlFor="tags" className="block text-sm font-medium text-gray-700">
+          Tags (comma-separated, Optional)
+        </label>
+        <input
+          type="text"
+          name="tags"
+          id="tags"
+          value={formData.tags}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          placeholder="frontend, react"
+        />
+      </div>
+      <div>
+        <label htmlFor="estimated_duration" className="block text-sm font-medium text-gray-700">
+          Estimated Duration (hours, Optional)
+        </label>
+        <input
+          type="number"
+          name="estimated_duration"
+          id="estimated_duration"
+          value={formData.estimated_duration}
+          onChange={handleChange}
+          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.estimated_duration ? 'border-red-500' : ''
+            }`}
+          placeholder="40"
+        />
+        {errors.estimated_duration && (
+          <p className="mt-1 text-sm text-red-500">{errors.estimated_duration}</p>
+        )}
+      </div>
+      <div>
+        <label htmlFor="actual_duration" className="block text-sm font-medium text-gray-700">
+          Actual Duration (hours, Optional)
+        </label>
+        <input
+          type="number"
+          name="actual_duration"
+          id="actual_duration"
+          value={formData.actual_duration}
+          onChange={handleChange}
+          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.actual_duration ? 'border-red-500' : ''
+            }`}
+          placeholder="0"
+        />
+        {errors.actual_duration && (
+          <p className="mt-1 text-sm text-red-500">{errors.actual_duration}</p>
+        )}
+      </div>
+      <div className="flex justify-end space-x-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
         <Button type="submit" variant="primary">
-          {initialTask?.id ? 'Update Task' : 'Create Task'}
+          Create Task
         </Button>
       </div>
     </form>

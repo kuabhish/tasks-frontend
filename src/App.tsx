@@ -1,13 +1,14 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Register from './pages/Register';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import ProjectsDashboard from './pages/ProjectsDashboard';
 import TasksDashboard from './pages/TasksDashboard';
-import TimelinePlanner from './pages/TimelinePlanner';
-import useAuthStore from './store/authStore';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import useAuthStore from './store/authStore';
+import Timeline from './pages/TimeLine';
+
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -40,11 +41,11 @@ const App: React.FC = () => {
           path="/timeline"
           element={
             <ProtectedRoute>
-              <TimelinePlanner />
+              <Timeline />
             </ProtectedRoute>
           }
         />
-        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="/" element={<ProtectedRoute><ProjectsDashboard /></ProtectedRoute>} />
       </Routes>
       <ToastContainer />
     </Router>

@@ -37,4 +37,50 @@ export const createProject = (data: {
   budget?: number;
 }) => api.post('/projects/create', data);
 
+export const fetchTasks = (projectId?: string) =>
+  api.get('/tasks/list', { params: { project_id: projectId } });
+
+export const createTask = (data: {
+  title: string;
+  description?: string;
+  status: 'Not Started' | 'In Progress' | 'Completed';
+  project_id: string;
+  category_id?: string;
+  priority?: 'Low' | 'Medium' | 'High';
+  assigned_user_id?: string;
+  assigned_team_id?: string;
+  due_date?: string;
+  is_recurring?: boolean;
+  recurring_pattern?: Record<string, any>;
+  tags?: string[];
+  estimated_duration?: number;
+  actual_duration?: number;
+}) => api.post('/tasks/create', data);
+
+export const createSubtask = (data: {
+  title: string;
+  description?: string;
+  status: 'Not Started' | 'In Progress' | 'Completed';
+  task_id: string;
+  assigned_user_id?: string;
+  assigned_team_id?: string;
+  due_date?: string;
+  tags?: string[];
+  estimated_duration?: number;
+}) => api.post('/tasks/subtasks/create', data);
+
+export const fetchTimeEntries = (params: {
+  project_id?: string;
+  start_date?: string;
+  end_date?: string;
+}) => api.get('/time-entries/list', { params });
+
+export const createTimeEntry = (data: {
+  subtask_id: string;
+  start_time: string;
+  end_time: string;
+  duration: number;
+  notes?: string;
+}) => api.post('/time-entries/create', data);
+
 export default api;
