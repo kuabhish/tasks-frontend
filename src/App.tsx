@@ -1,128 +1,54 @@
-import React, { useState } from 'react';
-import Header from './components/Header';
-import Sidebar from './components/Sidebar';
-import DayView from './components/DayView';
-import WeekView from './components/WeekView';
-import MonthView from './components/MonthView';
-import TaskList from './components/TaskList';
-import TaskForm from './components/TaskForm';
-import Modal from './components/Modal';
-import { Task } from './types';
-import useTimeStore from './store/timeStore';
-import { startOfWeek } from 'date-fns';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Register from './pages/Register';
+import Login from './pages/Login';
+import ProjectsDashboard from './pages/ProjectsDashboard';
+import TasksDashboard from './pages/TasksDashboard';
+import TimelinePlanner from './pages/TimelinePlanner';
+import useAuthStore from './store/authStore';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-function App() {
-  const {
-    tasks,
-    currentView,
-    selectedDate,
-    addTask,
-    updateTask,
-    getTasksForDay,
-    getFilteredTasks,
-  } = useTimeStore();
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+};
 
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-
-  const handleOpenTaskModal = (task?: Task) => {
-    if (task) {
-      setEditingTask(task);
-    } else {
-      setEditingTask(null);
-    }
-
-    setIsTaskModalOpen(true);
-  };
-
-  const handleCloseTaskModal = () => {
-    setIsTaskModalOpen(false);
-    setEditingTask(null);
-  };
-
-  const handleTaskSubmit = (taskData: Omit<Task, 'id'>) => {
-    if (editingTask) {
-      updateTask(editingTask.id, taskData);
-    } else {
-      addTask(taskData);
-    }
-
-    handleCloseTaskModal();
-  };
-
-  const renderView = () => {
-    switch (currentView) {
-      case 'day':
-        return (
-          <DayView
-            date={selectedDate}
-            onEditTask={handleOpenTaskModal}
-          />
-        );
-      case 'week':
-        return (
-          <WeekView
-            startDate={startOfWeek(selectedDate)}
-            onEditTask={handleOpenTaskModal}
-          />
-        );
-      case 'month':
-        return (
-          <MonthView
-            date={selectedDate}
-            onEditTask={handleOpenTaskModal}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Get filtered tasks based on the current filter options
-  const filteredTasks = getFilteredTasks();
-
+const App: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <Header />
-
-      <div className="flex-1 flex">
-        <Sidebar onNewTask={() => handleOpenTaskModal()} />
-
-        <main className="flex-1 p-6 overflow-y-auto">
-          {renderView()}
-
-          {currentView === 'day' && (
-            <TaskList
-              title="Today's Tasks"
-              tasks={getTasksForDay(selectedDate)}
-              onEditTask={handleOpenTaskModal}
-            />
-          )}
-
-          {/* {filteredTasks.length > 0 && (
-            <TaskList 
-              title="Filtered Tasks" 
-              tasks={filteredTasks}
-              onEditTask={handleOpenTaskModal} 
-            />
-          )} */}
-        </main>
-      </div>
-
-      <Modal
-        isOpen={isTaskModalOpen}
-        onClose={handleCloseTaskModal}
-        title={editingTask ? 'Edit Task' : 'Create Task'}
-        maxWidth="lg"
-      >
-        <TaskForm
-          initialTask={editingTask || undefined}
-          onSubmit={handleTaskSubmit}
-          onCancel={handleCloseTaskModal}
+    <Router>
+      <Routes>
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/projects"
+          element={
+            <ProtectedRoute>
+              <ProjectsDashboard />
+            </ProtectedRoute>
+          }
         />
-      </Modal>
-    </div>
+        <Route
+          path="/tasks"
+          element={
+            <ProtectedRoute>
+              <TasksDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/timeline"
+          element={
+            <ProtectedRoute>
+              <TimelinePlanner />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/" element={<Navigate to="/login" />} />
+      </Routes>
+      <ToastContainer />
+    </Router>
   );
-}
+};
 
 export default App;

@@ -1,46 +1,18 @@
+// src/components/Header.tsx
 import React from 'react';
-import { ClockIcon } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { ClockIcon, LogOutIcon } from 'lucide-react';
 import Button from './ui/Button';
-import useTimeStore from '../store/timeStore';
-import { format, isValid } from 'date-fns';
+import useAuthStore from '../store/authStore';
+import { useNavigate } from 'react-router-dom';
 
 const Header: React.FC = () => {
-  const { currentView, setCurrentView, selectedDate, setSelectedDate, isTracking, activeTaskId, stopTracking } = useTimeStore();
-  const tasks = useTimeStore((state) => state.tasks);
+  const { logout } = useAuthStore();
+  const navigate = useNavigate();
 
-  const handleViewChange = (view: 'day' | 'week' | 'month') => {
-    setCurrentView(view);
-  };
-
-  const handleDateChange = (offset: number) => {
-    const newDate = new Date(selectedDate);
-    
-    if (currentView === 'day') {
-      newDate.setDate(newDate.getDate() + offset);
-    } else if (currentView === 'week') {
-      newDate.setDate(newDate.getDate() + (offset * 7));
-    } else if (currentView === 'month') {
-      newDate.setMonth(newDate.getMonth() + offset);
-    }
-    
-    setSelectedDate(newDate);
-  };
-
-  const activeTask = tasks.find(task => task.id === activeTaskId);
-
-  const formatSelectedDate = () => {
-    if (!isValid(selectedDate)) {
-      setSelectedDate(new Date()); // Reset to current date if invalid
-      return 'Invalid Date';
-    }
-
-    if (currentView === 'day') {
-      return format(selectedDate, 'MMMM d, yyyy');
-    } else if (currentView === 'week') {
-      return `Week of ${format(selectedDate, 'MMM d')}`;
-    } else {
-      return format(selectedDate, 'MMMM yyyy');
-    }
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   return (
@@ -51,76 +23,40 @@ const Header: React.FC = () => {
             <ClockIcon className="h-6 w-6 text-primary-600" />
             <h1 className="text-xl font-semibold text-gray-900">TimeFlow</h1>
           </div>
-          
           <div className="flex items-center space-x-4">
-            {isTracking && activeTask && (
-              <div className="flex items-center bg-green-50 px-3 py-1 rounded-md animate-pulse">
-                <span className="text-sm font-medium text-green-800 mr-2">
-                  Tracking: {activeTask.title}
-                </span>
-                <Button 
-                  variant="danger" 
-                  size="sm" 
-                  onClick={() => stopTracking()}
-                >
-                  Stop
-                </Button>
-              </div>
-            )}
-            
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => handleDateChange(-1)}
+            <nav className="flex space-x-2">
+              <NavLink
+                to="/projects"
+                className={({ isActive }) =>
+                  `px-3 py-2 text-sm font-medium rounded-md ${isActive ? 'bg-primary-100 text-primary-800' : 'text-gray-700 hover:bg-gray-100'
+                  }`
+                }
               >
-                Previous
-              </Button>
-              
-              <span className="text-sm font-medium">
-                {formatSelectedDate()}
-              </span>
-              
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => handleDateChange(1)}
+                Projects
+              </NavLink>
+              <NavLink
+                to="/tasks"
+                className={({ isActive }) =>
+                  `px-3 py-2 text-sm font-medium rounded-md ${isActive ? 'bg-primary-100 text-primary-800' : 'text-gray-700 hover:bg-gray-100'
+                  }`
+                }
               >
-                Next
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setSelectedDate(new Date())}
+                Tasks
+              </NavLink>
+              <NavLink
+                to="/timeline"
+                className={({ isActive }) =>
+                  `px-3 py-2 text-sm font-medium rounded-md ${isActive ? 'bg-primary-100 text-primary-800' : 'text-gray-700 hover:bg-gray-100'
+                  }`
+                }
               >
-                Today
-              </Button>
-            </div>
-            
-            <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-md">
-              <Button 
-                variant={currentView === 'day' ? 'primary' : 'ghost'} 
-                size="sm"
-                onClick={() => handleViewChange('day')}
-              >
-                Day
-              </Button>
-              <Button 
-                variant={currentView === 'week' ? 'primary' : 'ghost'} 
-                size="sm"
-                onClick={() => handleViewChange('week')}
-              >
-                Week
-              </Button>
-              <Button 
-                variant={currentView === 'month' ? 'primary' : 'ghost'} 
-                size="sm"
-                onClick={() => handleViewChange('month')}
-              >
-                Month
-              </Button>
-            </div>
+                Timeline
+              </NavLink>
+            </nav>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOutIcon className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
           </div>
         </div>
       </div>

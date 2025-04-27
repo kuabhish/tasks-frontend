@@ -17,6 +17,18 @@ export interface Task {
   color?: string;
 }
 
+
+// export interface Task {
+//   id: string;
+//   title: string;
+//   description: string;
+//   category: string;
+//   startTime: Date;
+//   endTime?: Date;
+//   tags: string[];
+//   status: 'To Do' | 'In Progress' | 'Completed';
+// }
+
 export interface Category {
   id: string;
   name: string;
