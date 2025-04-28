@@ -4,7 +4,7 @@ import useAuthStore from '../store/authStore';
 const API_URL_V1 = import.meta.env.API_URL
 
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:5000/api/v1',
+  baseURL: API_URL_V1,
 });
 
 api.interceptors.request.use((config) => {
