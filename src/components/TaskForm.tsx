@@ -2,23 +2,28 @@ import React, { useState, useEffect } from 'react';
 import Button from './ui/Button';
 import { fetchProjects } from '../utils/api';
 import { Project } from '../types/project';
+import { Task } from '../types/task';
 import { toast } from 'react-toastify';
 
 interface TaskFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
+  task?: Task; // Optional task for edit mode
 }
 
-const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel }) => {
+const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, task }) => {
+  const isEditMode = !!task;
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    status: 'Not Started',
-    priority: 'Medium',
-    project_id: '',
-    due_date: '',
-    tags: '',
-    estimated_duration: '',
+    title: task?.title || '',
+    description: task?.description || '',
+    status: task?.status || 'Not Started',
+    priority: task?.priority || 'Medium',
+    project_id: task?.projectId || '',
+    due_date: task?.dueDate?.split('T')[0] || '', // Convert ISO date to YYYY-MM-DD
+    tags: task?.tags?.join(', ') || '',
+    estimated_duration: task?.estimatedDuration?.toString() || '',
+    actual_duration: task?.actualDuration?.toString() || '',
+    category_id: task?.categoryId || '',
   });
   const [projects, setProjects] = useState<Project[]>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -40,12 +45,18 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel }) => {
     const newErrors: { [key: string]: string } = {};
     if (!formData.title.trim()) newErrors.title = 'Title is required';
     if (!formData.status) newErrors.status = 'Status is required';
-    if (!formData.project_id) newErrors.project_id = 'Project is required';
+    if (!isEditMode && !formData.project_id) newErrors.project_id = 'Project is required';
     if (formData.estimated_duration && isNaN(Number(formData.estimated_duration))) {
       newErrors.estimated_duration = 'Estimated duration must be a number';
     }
     if (formData.estimated_duration && Number(formData.estimated_duration) <= 0) {
       newErrors.estimated_duration = 'Estimated duration must be positive';
+    }
+    if (formData.actual_duration && isNaN(Number(formData.actual_duration))) {
+      newErrors.actual_duration = 'Actual duration must be a number';
+    }
+    if (formData.actual_duration && Number(formData.actual_duration) < 0) {
+      newErrors.actual_duration = 'Actual duration cannot be negative';
     }
     if (formData.due_date) {
       const dueDate = new Date(formData.due_date);
@@ -78,7 +89,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel }) => {
         description: formData.description.trim() || undefined,
         status: formData.status,
         priority: formData.priority,
-        project_id: formData.project_id,
+        project_id: formData.project_id || undefined,
+        category_id: formData.category_id || undefined,
         due_date: formData.due_date || undefined,
         tags: formData.tags
           ? formData.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
@@ -86,9 +98,12 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel }) => {
         estimated_duration: formData.estimated_duration
           ? Number(formData.estimated_duration)
           : undefined,
+        actual_duration: formData.actual_duration
+          ? Number(formData.actual_duration)
+          : undefined,
       });
     } catch (err) {
-      toast.error('Failed to create task');
+      toast.error(`Failed to ${isEditMode ? 'update' : 'create'} task`);
     } finally {
       setIsLoading(false);
     }
@@ -168,7 +183,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel }) => {
           value={formData.project_id}
           onChange={handleChange}
           className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.project_id ? 'border-red-500' : ''}`}
-          required
+          required={!isEditMode}
+          disabled={isEditMode}
         >
           <option value="">Select a project</option>
           {projects.map((project) => (
@@ -178,6 +194,20 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel }) => {
           ))}
         </select>
         {errors.project_id && <p className="mt-1 text-sm text-red-500">{errors.project_id}</p>}
+      </div>
+      <div>
+        <label htmlFor="category_id" className="block text-sm font-medium text-gray-700">
+          Category ID (Optional)
+        </label>
+        <input
+          type="text"
+          name="category_id"
+          id="category_id"
+          value={formData.category_id}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          placeholder="Category ID"
+        />
       </div>
       <div>
         <label htmlFor="due_date" className="block text-sm font-medium text-gray-700">
@@ -226,12 +256,31 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel }) => {
           <p className="mt-1 text-sm text-red-500">{errors.estimated_duration}</p>
         )}
       </div>
+      <div>
+        <label htmlFor="actual_duration" className="block text-sm font-medium text-gray-700">
+          Actual Duration (hours, Optional)
+        </label>
+        <input
+          type="number"
+          name="actual_duration"
+          id="actual_duration"
+          value={formData.actual_duration}
+          onChange={handleChange}
+          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.actual_duration ? 'border-red-500' : ''}`}
+          placeholder="0"
+          min="0"
+          step="1"
+        />
+        {errors.actual_duration && (
+          <p className="mt-1 text-sm text-red-500">{errors.actual_duration}</p>
+        )}
+      </div>
       <div className="flex justify-end space-x-2">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
           Cancel
         </Button>
         <Button type="submit" variant="primary" disabled={isLoading}>
-          {isLoading ? 'Creating...' : 'Create Task'}
+          {isLoading ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update Task' : 'Create Task')}
         </Button>
       </div>
     </form>

@@ -3,24 +3,27 @@ import Button from './ui/Button';
 import { fetchUsers, fetchTeams } from '../utils/api';
 import { User } from '../types/user';
 import { Team } from '../types/team';
+import { Subtask } from '../types/task';
 import { toast } from 'react-toastify';
 
 interface SubtaskFormProps {
   taskId: string;
   onSubmit: (data: any) => void;
   onCancel: () => void;
+  subtask?: Subtask; // Optional subtask for edit mode
 }
 
-const SubtaskForm: React.FC<SubtaskFormProps> = ({ taskId, onSubmit, onCancel }) => {
+const SubtaskForm: React.FC<SubtaskFormProps> = ({ taskId, onSubmit, onCancel, subtask }) => {
+  const isEditMode = !!subtask;
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    status: 'Not Started',
-    assigned_user_id: '',
-    assigned_team_id: '',
-    due_date: '',
-    tags: '',
-    estimated_duration: '',
+    title: subtask?.title || '',
+    description: subtask?.description || '',
+    status: subtask?.status || 'Not Started',
+    assigned_user_id: subtask?.assignedUserId || '',
+    assigned_team_id: subtask?.assignedTeamId || '',
+    due_date: subtask?.dueDate?.split('T')[0] || '',
+    tags: subtask?.tags?.join(', ') || '',
+    estimated_duration: subtask?.estimatedDuration?.toString() || '',
   });
   const [users, setUsers] = useState<User[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -94,7 +97,7 @@ const SubtaskForm: React.FC<SubtaskFormProps> = ({ taskId, onSubmit, onCancel })
           : undefined,
       });
     } catch (err) {
-      toast.error('Failed to create subtask');
+      toast.error(`Failed to ${isEditMode ? 'update' : 'create'} subtask`);
     } finally {
       setIsLoading(false);
     }
@@ -238,7 +241,7 @@ const SubtaskForm: React.FC<SubtaskFormProps> = ({ taskId, onSubmit, onCancel })
           Cancel
         </Button>
         <Button type="submit" variant="primary" disabled={isLoading}>
-          {isLoading ? 'Creating...' : 'Create Subtask'}
+          {isLoading ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update Subtask' : 'Create Subtask')}
         </Button>
       </div>
     </form>

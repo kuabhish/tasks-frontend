@@ -51,12 +51,24 @@ export const createTask = (data: {
   category_id?: string;
   priority?: 'Low' | 'Medium' | 'High';
   due_date?: string;
-  is_recurring?: boolean;
-  recurring_pattern?: Record<string, any>;
   tags?: string[];
   estimated_duration?: number;
   actual_duration?: number;
 }) => api.post('/tasks/create', data);
+
+export const updateTask = (taskId: string, data: {
+  title?: string;
+  description?: string;
+  status?: 'Not Started' | 'In Progress' | 'Completed';
+  category_id?: string;
+  priority?: 'Low' | 'Medium' | 'High';
+  due_date?: string;
+  tags?: string[];
+  estimated_duration?: number;
+  actual_duration?: number;
+}) => api.put(`/tasks/update/${taskId}`, data);
+
+export const deleteTask = (taskId: string) => api.delete(`/tasks/delete/${taskId}`);
 
 // Subtasks
 export const createSubtask = (data: {
@@ -70,6 +82,19 @@ export const createSubtask = (data: {
   tags?: string[];
   estimated_duration?: number;
 }) => api.post('/tasks/subtasks/create', data);
+
+export const updateSubtask = (subtaskId: string, data: {
+  title?: string;
+  description?: string;
+  status?: 'Not Started' | 'In Progress' | 'Completed';
+  assigned_user_id?: string;
+  assigned_team_id?: string;
+  due_date?: string;
+  tags?: string[];
+  estimated_duration?: number;
+}) => api.put(`/tasks/subtasks/update/${subtaskId}`, data);
+
+export const deleteSubtask = (subtaskId: string) => api.delete(`/tasks/subtasks/delete/${subtaskId}`);
 
 // Time Entries
 export const fetchTimeEntries = (params: {
