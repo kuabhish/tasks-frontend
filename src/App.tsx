@@ -6,10 +6,10 @@ import ProjectsDashboard from './pages/ProjectsDashboard';
 import TasksDashboard from './pages/TasksDashboard';
 import TeamsDashboard from './pages/TeamsDashboard';
 import UserProfile from './pages/UserProfile';
-import Timeline from './pages/TimeLine';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import useAuthStore from './store/authStore';
+import Timeline from './pages/Timeline';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
