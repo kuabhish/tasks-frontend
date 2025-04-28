@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
-import ProjectSidebar from '../components/ProjectSidebar';
+import Sidebar from '../components/Sidebar';
 import TaskForm from '../components/TaskForm';
 import Modal from '../components/Modal';
 import Button from '../components/ui/Button';
 import { PlusIcon } from 'lucide-react';
 import useTaskStore from '../store/taskStore';
 import useAuthStore from '../store/authStore';
-import { fetchTasks, createTask, createSubtask } from '../utils/api';
+import { fetchTasks, createTask, createSubtask, fetchUsers, fetchTeams } from '../utils/api';
 import { toast } from 'react-toastify';
 import { Task } from '../types/task';
-import SubtaskForm from '../components/SubTaskForm';
+import SubtaskForm from '../components/SubtaskForm';
+import { User } from '../types/user';
+import { Team } from '../types/team';
 
 const TasksDashboard: React.FC = () => {
   const { tasks, setTasks, addTask, addSubtask } = useTaskStore();
@@ -21,17 +23,25 @@ const TasksDashboard: React.FC = () => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isSubtaskModalOpen, setIsSubtaskModalOpen] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('All');
+  const [users, setUsers] = useState<User[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
 
   useEffect(() => {
-    const loadTasks = async () => {
+    const loadData = async () => {
       try {
-        const response = await fetchTasks(projectId || undefined);
-        setTasks(response.data.data);
+        const [tasksResponse, usersResponse, teamsResponse] = await Promise.all([
+          fetchTasks(projectId || undefined),
+          fetchUsers(),
+          fetchTeams(),
+        ]);
+        setTasks(tasksResponse.data.data);
+        setUsers(usersResponse.data.data);
+        setTeams(teamsResponse.data.data);
       } catch (err: any) {
-        toast.error(err.response?.data?.message || 'Failed to fetch tasks');
+        toast.error(err.response?.data?.message || 'Failed to fetch data');
       }
     };
-    loadTasks();
+    loadData();
   }, [projectId, setTasks]);
 
   const handleOpenTaskModal = () => {
@@ -82,11 +92,21 @@ const TasksDashboard: React.FC = () => {
     Low: 'bg-green-100 text-green-800',
   };
 
+  const getUserName = (userId?: string) => {
+    const user = users.find((u) => u.id === userId);
+    return user ? `${user.username} (${user.email})` : 'Unassigned';
+  };
+
+  const getTeamName = (teamId?: string) => {
+    const team = teams.find((t) => t.id === teamId);
+    return team ? team.name : 'Unassigned';
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
       <div className="flex-1 flex">
-        <ProjectSidebar onCreateProject={() => { }} />
+        <Sidebar />
         <main className="flex-1 p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-800">Tasks Dashboard</h1>
@@ -127,10 +147,6 @@ const TasksDashboard: React.FC = () => {
                       <p>Tags: {task.tags?.join(', ') || 'None'}</p>
                       <p>Estimated Duration: {task.estimatedDuration || 'N/A'} hours</p>
                       <p>Actual Duration: {task.actualDuration || 0} hours</p>
-                      <p>Recurring: {task.isRecurring ? 'Yes' : 'No'}</p>
-                      {task.recurringPattern && (
-                        <p>Recurring Pattern: {JSON.stringify(task.recurringPattern)}</p>
-                      )}
                     </div>
                   </div>
                   {['Admin', 'Project Manager'].includes(role || '') && (
@@ -153,6 +169,9 @@ const TasksDashboard: React.FC = () => {
                           <p className="text-sm text-gray-600">{subtask.description || 'No description'}</p>
                           <div className="text-sm text-gray-500">
                             <p>Status: {subtask.status}</p>
+                            <p>Assigned User: {getUserName(subtask.assignedUserId)}</p>
+                            <p>Assigned Team: {getTeamName(subtask.assignedTeamId)}</p>
+                            <p>Due: {subtask.dueDate || 'N/A'}</p>
                             <p>Tags: {subtask.tags?.join(', ') || 'None'}</p>
                             <p>Estimated Duration: {subtask.estimatedDuration || 'N/A'} hours</p>
                           </div>

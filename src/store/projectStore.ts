@@ -1,5 +1,7 @@
+import { Project } from './../types/project';
 import { create } from 'zustand';
-import { Project, Task as ProjectTask } from '../types/project';
+
+import { Task as ProjectTask } from '../types/task';
 
 interface ProjectState {
   projects: Project[];

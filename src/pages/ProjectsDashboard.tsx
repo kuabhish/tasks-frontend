@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ProjectCard from '../components/ProjectCard';
-import ProjectSidebar from '../components/ProjectSidebar';
+import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import useProjectStore from '../store/projectStore';
 import { fetchProjects, createProject } from '../utils/api';
@@ -62,7 +62,7 @@ const ProjectsDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
       <div className="flex-1 flex">
-        <ProjectSidebar onCreateProject={handleOpenProjectModal} />
+        <Sidebar />
         <main className="flex-1 p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-800">Projects Dashboard</h1>

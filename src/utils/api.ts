@@ -13,6 +13,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Auth
 export const register = (data: {
   username: string;
   email: string;
@@ -24,19 +25,21 @@ export const register = (data: {
 export const login = (data: { email: string; password: string }) =>
   api.post('/auth/login', data);
 
+// Projects
 export const fetchProjects = () => api.get('/projects/list');
 
 export const createProject = (data: {
   title: string;
-  description: string;
-  status: string;
-  start_date: string;
-  tech_stack: string[];
+  description?: string;
+  status?: string;
+  start_date?: string;
+  tech_stack?: string[];
   repository_url?: string;
   end_date?: string;
   budget?: number;
 }) => api.post('/projects/create', data);
 
+// Tasks
 export const fetchTasks = (projectId?: string) =>
   api.get('/tasks/list', { params: { project_id: projectId } });
 
@@ -47,8 +50,6 @@ export const createTask = (data: {
   project_id: string;
   category_id?: string;
   priority?: 'Low' | 'Medium' | 'High';
-  assigned_user_id?: string;
-  assigned_team_id?: string;
   due_date?: string;
   is_recurring?: boolean;
   recurring_pattern?: Record<string, any>;
@@ -57,6 +58,7 @@ export const createTask = (data: {
   actual_duration?: number;
 }) => api.post('/tasks/create', data);
 
+// Subtasks
 export const createSubtask = (data: {
   title: string;
   description?: string;
@@ -69,6 +71,7 @@ export const createSubtask = (data: {
   estimated_duration?: number;
 }) => api.post('/tasks/subtasks/create', data);
 
+// Time Entries
 export const fetchTimeEntries = (params: {
   project_id?: string;
   start_date?: string;
@@ -82,5 +85,24 @@ export const createTimeEntry = (data: {
   duration: number;
   notes?: string;
 }) => api.post('/time-entries/create', data);
+
+// Teams
+export const createTeam = (data: {
+  name: string;
+  description?: string;
+}) => api.post('/teams/create', data);
+
+export const fetchTeams = () => api.get('/teams/list');
+
+export const addTeamMember = (teamId: string, data: { user_id: string }) =>
+  api.post(`/teams/${teamId}/members`, data);
+
+export const removeTeamMember = (teamId: string, userId: string) =>
+  api.delete(`/teams/${teamId}/members/${userId}`);
+
+// Users
+export const fetchUsers = () => api.get('/users/list');
+
+export const fetchUser = (userId: string) => api.get(`/users/${userId}`);
 
 export default api;

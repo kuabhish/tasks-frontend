@@ -4,11 +4,12 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ProjectsDashboard from './pages/ProjectsDashboard';
 import TasksDashboard from './pages/TasksDashboard';
+import TeamsDashboard from './pages/TeamsDashboard';
+import UserProfile from './pages/UserProfile';
+import Timeline from './pages/TimeLine';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import useAuthStore from './store/authStore';
-import Timeline from './pages/TimeLine';
-
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -42,6 +43,22 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Timeline />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teams"
+          element={
+            <ProtectedRoute>
+              <TeamsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <UserProfile />
             </ProtectedRoute>
           }
         />

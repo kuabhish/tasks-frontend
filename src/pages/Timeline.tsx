@@ -12,7 +12,7 @@ import {
   formatISO,
 } from 'date-fns';
 import Header from '../components/Header';
-import ProjectSidebar from '../components/ProjectSidebar';
+import Sidebar from '../components/Sidebar';
 import DayView from '../components/DayView';
 import WeekView from '../components/WeekView';
 import MonthView from '../components/MonthView';
@@ -167,7 +167,7 @@ const Timeline: React.FC = () => {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
       <div className="flex-1 flex">
-        <ProjectSidebar onCreateProject={() => { }} />
+        <Sidebar />
         <main className="flex-1 p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-800">Timeline</h1>

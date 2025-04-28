@@ -1,3 +1,21 @@
+export interface Task {
+  id: string;
+  customerId: string;
+  projectId: string;
+  categoryId?: string;
+  title: string;
+  description?: string;
+  status: 'Not Started' | 'In Progress' | 'Completed';
+  priority: 'Low' | 'Medium' | 'High';
+  dueDate?: string;
+  tags?: string[];
+  estimatedDuration?: number;
+  actualDuration?: number;
+  createdAt: string;
+  updatedAt: string;
+  subtasks: Subtask[];
+}
+
 export interface Subtask {
   id: string;
   taskId: string;
@@ -11,29 +29,6 @@ export interface Subtask {
   estimatedDuration?: number;
   createdAt: string;
   updatedAt: string;
-  timeEntries?: TimeEntry[];
-}
-
-export interface Task {
-  id: string;
-  customerId: string;
-  projectId?: string;
-  categoryId?: string;
-  title: string;
-  description?: string;
-  status: 'Not Started' | 'In Progress' | 'Completed';
-  priority: 'Low' | 'Medium' | 'High';
-  assignedUserId?: string;
-  assignedTeamId?: string;
-  dueDate?: string;
-  isRecurring: boolean;
-  recurringPattern?: Record<string, any>;
-  tags?: string[];
-  estimatedDuration?: number;
-  actualDuration?: number;
-  createdAt: string;
-  updatedAt: string;
-  subtasks: Subtask[];
 }
 
 export interface TimeEntry {
@@ -46,7 +41,7 @@ export interface TimeEntry {
   duration: number;
   notes?: string;
   createdAt: string;
-  subtask?: Subtask; // Include subtask details for display
+  subtask?: Subtask;
 }
 
 export interface Category {
