@@ -1,7 +1,8 @@
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
 
-const API_URL_V1 = 'http://127.0.0.1:5000/api/v1';
+// const API_URL_V1 = 'http://127.0.0.1:5000/api/v1';
+const API_URL_V1 = 'https://app.timemapper.com/api/v1'
 
 const api = axios.create({
   baseURL: API_URL_V1,
