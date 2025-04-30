@@ -64,7 +64,7 @@ const App: React.FC = () => {
         />
         <Route path="/" element={<ProtectedRoute><ProjectsDashboard /></ProtectedRoute>} />
       </Routes>
-      <ToastContainer />
+      <ToastContainer position='bottom-right' autoClose={5000} />
     </Router>
   );
 };

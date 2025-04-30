@@ -23,20 +23,25 @@ import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import useTimeStore from '../store/timeStore';
 import useTaskStore from '../store/taskStore';
 import useAuthStore from '../store/authStore';
-import { fetchTimeEntries, createTimeEntry, fetchTasks } from '../utils/api';
+import { fetchTimeEntries, createTimeEntry, updateTimeEntry, fetchTasks } from '../utils/api';
 import { toast } from 'react-toastify';
 import { Subtask, Task, TimeEntry } from '../types/task';
 
 const Timeline: React.FC = () => {
-  const { timeEntries, setTimeEntries, addTimeEntry } = useTimeStore();
+  const { timeEntries, setTimeEntries, addTimeEntry, updateTimeEntry: updateStoreTimeEntry } = useTimeStore();
   const { tasks, setTasks } = useTaskStore();
   const role = useAuthStore((state) => state.user?.role);
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('projectId');
   const [view, setView] = useState<'day' | 'week' | 'month'>('day');
-  const [currentDate, setCurrentDate] = useState(new Date('2025-04-27')); // Local time
+  const [currentDate, setCurrentDate] = useState(() => {
+    const now = new Date();
+    console.log('Timeline initialized currentDate:', now.toISOString());
+    return now;
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<{
+    id?: string;
     subtask_id: string;
     start_time: string;
     end_time: string;
@@ -47,12 +52,15 @@ const Timeline: React.FC = () => {
     const loadData = async () => {
       try {
         const taskResponse = await fetchTasks();
-        console.log('Fetched tasks:', taskResponse.data.data);
-        setTasks(taskResponse.data.data);
+        console.log('Fetched tasks response:', taskResponse.data);
+        const taskData = Array.isArray(taskResponse.data.data) ? taskResponse.data.data : [];
+        setTasks(taskData);
 
         // Adjust currentDate to UTC by removing local timezone offset (IST: +5:30)
         const offsetMs = currentDate.getTimezoneOffset() * 60 * 1000;
-        const utcCurrentDate = new Date(currentDate.getTime() - offsetMs);
+        const utcCurrentDate = new Date(currentDate.getTime() + offsetMs);
+
+        console.log("debug time ", offsetMs, utcCurrentDate)
         let startDate: Date, endDate: Date;
         if (view === 'day') {
           startDate = startOfDay(utcCurrentDate);
@@ -77,22 +85,36 @@ const Timeline: React.FC = () => {
           end_date: formatISO(endDate),
         });
 
-        console.log('Fetched time entries:', timeResponse.data);
+        console.log('Fetched time entries response:', timeResponse.data);
 
-        const enrichedEntries = timeResponse?.data?.data?.map((entry: TimeEntry) => {
-          const subtask = taskResponse.data.data
+        // Ensure timeResponse.data is an array
+        const timeData = Array.isArray(timeResponse?.data?.data) ? timeResponse.data.data : [];
+        // if (!Array.isArray(timeResponse.data)) {
+        //   console.warn('timeResponse.data is not an array:', timeResponse.data);
+        //   toast.error('Invalid time entries data received');
+        // }
+
+        const enrichedEntries = timeData.map((entry: TimeEntry) => {
+          const subtask = taskData
             .flatMap((t: Task) => t.subtasks)
-            .find((s) => s.id === entry.subtaskId);
+            .find((s: Subtask) => s.id === entry.subtaskId);
           return {
             ...entry,
-            subtask: subtask || { title: 'Unknown', tags: [] },
+            subtask: subtask || {
+              title: 'Unknown',
+              tags: [],
+              taskId: '',
+              status: 'Not Started',
+              createdAt: '',
+              updatedAt: '',
+            },
           };
         });
 
         setTimeEntries(enrichedEntries);
       } catch (err: any) {
         console.error('Error fetching data:', err);
-        toast.error(err.response?.data?.message || 'Failed to fetch data');
+        toast.error(err.response?.data?.error || 'Failed to fetch data');
       }
     };
     loadData();
@@ -109,6 +131,7 @@ const Timeline: React.FC = () => {
   };
 
   const handleTimeEntrySubmit = async (data: {
+    id?: string;
     subtask_id: string;
     start_time: string;
     end_time: string;
@@ -116,29 +139,75 @@ const Timeline: React.FC = () => {
     notes?: string;
   }) => {
     try {
-      const response = await createTimeEntry(data);
-      const newEntry = response.data.data.timeEntry;
+      let response;
       const subtask = tasks
         .flatMap((t) => t.subtasks)
-        .find((s) => s.id === data.subtask_id) || { title: 'Unknown', tags: [] };
+        .find((s) => s.id === data.subtask_id) || {
+        title: 'Unknown',
+        tags: [],
+        taskId: '',
+        status: 'Not Started',
+        createdAt: '',
+        updatedAt: '',
+      };
 
-      addTimeEntry({
-        ...newEntry,
-        subtask,
-      });
-      toast.success('Time entry created successfully!');
+      if (data.id) {
+        response = await updateTimeEntry(data.id, {
+          subtask_id: data.subtask_id,
+          start_time: data.start_time,
+          end_time: data.end_time,
+          duration: data.duration,
+          notes: data.notes,
+        });
+        updateStoreTimeEntry({
+          ...response.data.timeEntry,
+          subtask,
+        });
+        toast.success('Time entry updated successfully!');
+      } else {
+        response = await createTimeEntry({
+          subtask_id: data.subtask_id,
+          start_time: data.start_time,
+          end_time: data.end_time,
+          duration: data.duration,
+          notes: data.notes,
+        });
+        console.log("debug -- ", response)
+        addTimeEntry({
+          ...response.data.data.timeEntry,
+          subtask,
+        });
+        toast.success('Time entry created successfully!');
+      }
+
       handleCloseModal();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to create time entry');
+      toast.error(err.response?.data?.error || 'Failed to save time entry');
     }
   };
 
   const handleEditTimeEntry = (entry: TimeEntry) => {
     setEditingEntry({
+      id: entry.id,
       subtask_id: entry.subtaskId,
       start_time: entry.startTime,
       end_time: entry.endTime,
       notes: entry.notes,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleTimeSlotClick = (startTime: string, endTime: string) => {
+    if (!['Admin', 'Project Manager'].includes(role || '')) {
+      toast.error('You do not have permission to create time entries.');
+      return;
+    }
+    console.log('Time slot clicked:', { startTime, endTime });
+    setEditingEntry({
+      subtask_id: '',
+      start_time: startTime,
+      end_time: endTime,
+      notes: '',
     });
     setIsModalOpen(true);
   };
@@ -162,6 +231,8 @@ const Timeline: React.FC = () => {
       setCurrentDate(addDays(currentDate, 30));
     }
   };
+
+  console.log('Timeline currentDate:', currentDate);
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -208,7 +279,13 @@ const Timeline: React.FC = () => {
               )}
             </div>
           </div>
-          {view === 'day' && <DayView date={currentDate} onEditTimeEntry={handleEditTimeEntry} />}
+          {view === 'day' && (
+            <DayView
+              date={currentDate}
+              onEditTimeEntry={handleEditTimeEntry}
+              onTimeSlotClick={handleTimeSlotClick}
+            />
+          )}
           {view === 'week' && (
             <WeekView startDate={currentDate} onEditTimeEntry={handleEditTimeEntry} />
           )}
@@ -220,7 +297,7 @@ const Timeline: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title={editingEntry ? 'Edit Time Entry' : 'Create New Time Entry'}
+        title={editingEntry?.id ? 'Edit Time Entry' : 'Create New Time Entry'}
         maxWidth="lg"
       >
         <TimeEntryForm

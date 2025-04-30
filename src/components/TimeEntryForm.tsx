@@ -2,11 +2,20 @@ import React, { useState, useEffect } from 'react';
 import Button from './ui/Button';
 import { fetchTasks } from '../utils/api';
 import { Task, Subtask } from '../types/task';
+import { toast } from 'react-toastify';
 
 interface TimeEntryFormProps {
-  onSubmit: (data: any) => void;
+  onSubmit: (data: {
+    id?: string;
+    subtask_id: string;
+    start_time: string;
+    end_time: string;
+    duration: number;
+    notes?: string;
+  }) => void;
   onCancel: () => void;
   initialData?: {
+    id?: string;
     subtask_id: string;
     start_time: string;
     end_time: string;
@@ -15,22 +24,59 @@ interface TimeEntryFormProps {
 }
 
 const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ onSubmit, onCancel, initialData }) => {
+  // Helper function to format UTC ISO string to local datetime-local format (YYYY-MM-DDThh:mm)
+  const formatToLocalDateTime = (utcDateString?: string): string => {
+    if (!utcDateString) return '';
+    try {
+      const date = new Date(utcDateString);
+      if (isNaN(date.getTime())) return '';
+      // Convert to local timezone and format as YYYY-MM-DDThh:mm
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    } catch {
+      console.warn(`Invalid date string: ${utcDateString}`);
+      return '';
+    }
+  };
+
   const [formData, setFormData] = useState({
+    id: initialData?.id || '',
     subtask_id: initialData?.subtask_id || '',
-    start_time: initialData?.start_time ? new Date(initialData.start_time).toISOString().slice(0, 16) : '',
-    end_time: initialData?.end_time ? new Date(initialData.end_time).toISOString().slice(0, 16) : '',
+    start_time: formatToLocalDateTime(initialData?.start_time),
+    end_time: formatToLocalDateTime(initialData?.end_time),
     notes: initialData?.notes || '',
   });
   const [tasks, setTasks] = useState<Task[]>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    console.log('TimeEntryForm initialData:', initialData);
+    console.log('TimeEntryForm formData:', formData);
+  }, [initialData, formData]);
 
   useEffect(() => {
     const loadTasks = async () => {
+      setLoading(true);
       try {
         const response = await fetchTasks();
-        setTasks(response.data.data);
-      } catch (err) {
+        console.log('Fetched tasks response in TimeEntryForm:', response.data.data);
+        const taskData = Array.isArray(response.data.data) ? response.data.data : [];
+        if (!Array.isArray(response.data.data)) {
+          console.warn('response.data is not an array:', response.data);
+          toast.error('Invalid tasks data received');
+        }
+        setTasks(taskData);
+      } catch (err: any) {
         console.error('Failed to fetch tasks:', err);
+        toast.error(err.response?.data?.error || 'Failed to fetch tasks');
+        setTasks([]);
+      } finally {
+        setLoading(false);
       }
     };
     loadTasks();
@@ -63,14 +109,30 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ onSubmit, onCancel, initi
     e.preventDefault();
     if (!validateForm()) return;
 
-    const start = new Date(formData.start_time);
-    const end = new Date(formData.end_time);
-    const duration = Math.round((end.getTime() - start.getTime()) / 1000 / 60);
+    // Convert local datetime to UTC ISO string
+    // Since datetime-local provides local time, create Date object and convert to UTC
+    const localStart = new Date(formData.start_time);
+    const localEnd = new Date(formData.end_time);
+
+    // Convert local time to UTC ISO string
+    const start = localStart.toISOString();
+    const end = localEnd.toISOString();
+    const duration = Math.round((localEnd.getTime() - localStart.getTime()) / 1000 / 60);
+
+    console.log('TimeEntryForm submitting:', {
+      id: formData.id || undefined,
+      subtask_id: formData.subtask_id,
+      start_time: start,
+      end_time: end,
+      duration,
+      notes: formData.notes || undefined,
+    });
 
     onSubmit({
+      id: formData.id || undefined,
       subtask_id: formData.subtask_id,
-      start_time: start.toISOString(), // Sends UTC time (e.g., 2025-04-27T17:33:00Z)
-      end_time: end.toISOString(),
+      start_time: start,
+      end_time: end,
       duration,
       notes: formData.notes || undefined,
     });
@@ -90,14 +152,21 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ onSubmit, onCancel, initi
           className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${errors.subtask_id ? 'border-red-500' : ''
             }`}
           required
+          disabled={loading}
         >
           <option value="">Select a subtask</option>
-          {tasks.map((task) =>
-            task.subtasks.map((subtask: Subtask) => (
-              <option key={subtask.id} value={subtask.id}>
-                {task.title} - {subtask.title}
-              </option>
-            ))
+          {tasks.length > 0 ? (
+            tasks.map((task) =>
+              task.subtasks.map((subtask: Subtask) => (
+                <option key={subtask.id} value={subtask.id}>
+                  {task.title} - {subtask.title}
+                </option>
+              ))
+            )
+          ) : (
+            <option value="" disabled>
+              {loading ? 'Loading subtasks...' : 'No subtasks available'}
+            </option>
           )}
         </select>
         {errors.subtask_id && <p className="mt-1 text-sm text-red-500">{errors.subtask_id}</p>}
@@ -151,8 +220,8 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ onSubmit, onCancel, initi
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary">
-          {initialData ? 'Update Time Entry' : 'Create Time Entry'}
+        <Button type="submit" variant="primary" disabled={loading}>
+          {formData.id ? 'Update Time Entry' : 'Create Time Entry'}
         </Button>
       </div>
     </form>

@@ -1,10 +1,10 @@
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
 
-const API_URL_V1 = import.meta.env.API_URL
+const API_URL_V1 = 'http://127.0.0.1:5000/api/v1';
 
 const api = axios.create({
-  baseURL: "https://easelake.com/api/v1",
+  baseURL: API_URL_V1,
 });
 
 api.interceptors.request.use((config) => {
@@ -112,6 +112,14 @@ export const createTimeEntry = (data: {
   duration: number;
   notes?: string;
 }) => api.post('/time-entries/create', data);
+
+export const updateTimeEntry = (timeEntryId: string, data: {
+  subtask_id: string;
+  start_time: string;
+  end_time: string;
+  duration: number;
+  notes?: string;
+}) => api.put(`/time-entries/update/${timeEntryId}`, data);
 
 // Teams
 export const createTeam = (data: {

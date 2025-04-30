@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { MouseEvent } from 'react';
 import {
   format,
   addHours,
@@ -6,27 +6,35 @@ import {
   endOfDay,
   isWithinInterval,
   differenceInMinutes,
+  addMinutes,
+  formatISO,
 } from 'date-fns';
 import useTimeStore from '../store/timeStore';
 import { TimeEntry } from '../types/task';
 import Badge from './ui/Badge';
+import { toast } from 'react-toastify';
 
 interface DayViewProps {
   date: Date;
   onEditTimeEntry: (timeEntry: TimeEntry) => void;
+  onTimeSlotClick?: (startTime: string, endTime: string) => void;
 }
 
-const DayView: React.FC<DayViewProps> = ({ date, onEditTimeEntry }) => {
+const DayView: React.FC<DayViewProps> = ({ date, onEditTimeEntry, onTimeSlotClick }) => {
   const timeEntries = useTimeStore((state) => state.timeEntries);
   const categories = useTimeStore((state) => state.categories);
 
-  // Adjust date to UTC
-  const utcDate = new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000);
+  console.log('DayView received date:', date.toISOString());
+
+  const utcDate = new Date(date.getTime());
 
   console.log('DayView date (UTC):', utcDate.toISOString());
   console.log('DayView timeEntries:', timeEntries);
 
+
+
   const entriesForDay = timeEntries.filter((entry) => {
+
     const dayStart = startOfDay(utcDate);
     const dayEnd = endOfDay(utcDate);
     const startTime = new Date(entry.startTime);
@@ -79,13 +87,48 @@ const DayView: React.FC<DayViewProps> = ({ date, onEditTimeEntry }) => {
     };
   };
 
+  const handleGridClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (!onTimeSlotClick) return;
+
+    if (e.target !== e.currentTarget) return;
+
+    const grid = e.currentTarget.getBoundingClientRect();
+    const clickY = e.clientY - grid.top;
+    const gridHeight = grid.height;
+
+    const minutesPerPixel = (24 * 60) / gridHeight;
+    const clickedMinutes = clickY * minutesPerPixel;
+    const roundedMinutes = Math.round(clickedMinutes / 15) * 15;
+
+    const startTime = addMinutes(startOfDay(utcDate), roundedMinutes);
+    const endTime = addMinutes(startTime, 60);
+
+    const startTimeISO = formatISO(startTime);
+    const endTimeISO = formatISO(endTime);
+
+    console.log('Grid clicked:', {
+      clickY,
+      gridHeight,
+      clickedMinutes,
+      roundedMinutes,
+      startTime: startTimeISO,
+      endTime: endTimeISO,
+    });
+
+    onTimeSlotClick(startTimeISO, endTimeISO);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-        <h2 className="text-lg font-medium">{format(utcDate, 'EEEE, MMMM d, yyyy')}</h2>
+        <h2 className="text-lg font-medium">{format(date, 'EEEE, MMMM d, yyyy')}</h2>
       </div>
 
-      <div className="relative" style={{ height: `${24 * 80}px` }}>
+      <div
+        className="relative"
+        style={{ height: `${24 * 80}px` }}
+        onClick={handleGridClick}
+      >
         {Array.from({ length: 24 }).map((_, index) => {
           const hour = addHours(startOfDay(utcDate), index);
           const label = format(hour, 'h a');
@@ -127,7 +170,10 @@ const DayView: React.FC<DayViewProps> = ({ date, onEditTimeEntry }) => {
                   color: '#fff',
                   opacity: 0.9,
                 }}
-                onClick={() => onEditTimeEntry(entry)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditTimeEntry(entry);
+                }}
               >
                 <div className="p-2">
                   <div className="flex items-center justify-between">
