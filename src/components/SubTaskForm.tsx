@@ -8,9 +8,9 @@ import { toast } from 'react-toastify';
 
 interface SubtaskFormProps {
   taskId: string;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: Omit<Subtask, 'id' | 'created_at' | 'updated_at'>) => void;
   onCancel: () => void;
-  subtask?: Subtask; // Optional subtask for edit mode
+  subtask?: Subtask;
 }
 
 const SubtaskForm: React.FC<SubtaskFormProps> = ({ taskId, onSubmit, onCancel, subtask }) => {
@@ -19,11 +19,11 @@ const SubtaskForm: React.FC<SubtaskFormProps> = ({ taskId, onSubmit, onCancel, s
     title: subtask?.title || '',
     description: subtask?.description || '',
     status: subtask?.status || 'Not Started',
-    assigned_user_id: subtask?.assignedUserId || '',
-    assigned_team_id: subtask?.assignedTeamId || '',
-    due_date: subtask?.dueDate?.split('T')[0] || '',
+    assigned_user_id: subtask?.assigned_user_id || '',
+    assigned_team_id: subtask?.assigned_team_id || '',
+    due_date: subtask?.due_date?.split('T')[0] || '',
     tags: subtask?.tags?.join(', ') || '',
-    estimated_duration: subtask?.estimatedDuration?.toString() || '',
+    estimated_duration: subtask?.estimated_duration?.toString() || '',
   });
   const [users, setUsers] = useState<User[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -82,16 +82,16 @@ const SubtaskForm: React.FC<SubtaskFormProps> = ({ taskId, onSubmit, onCancel, s
     setIsLoading(true);
     try {
       await onSubmit({
+        task_id: taskId,
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
-        status: formData.status,
-        task_id: taskId,
+        status: formData.status as Subtask['status'],
         assigned_user_id: formData.assigned_user_id || undefined,
         assigned_team_id: formData.assigned_team_id || undefined,
         due_date: formData.due_date || undefined,
         tags: formData.tags
           ? formData.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
-          : undefined,
+          : [],
         estimated_duration: formData.estimated_duration
           ? Number(formData.estimated_duration)
           : undefined,

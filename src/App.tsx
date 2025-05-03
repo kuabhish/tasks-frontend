@@ -2,31 +2,39 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import ProjectsDashboard from './pages/ProjectsDashboard';
 import TasksDashboard from './pages/TasksDashboard';
 import TeamsDashboard from './pages/TeamsDashboard';
 import UserProfile from './pages/UserProfile';
+import Timeline from './pages/Timeline';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import useAuthStore from './store/authStore';
-import Timeline from './pages/Timeline';
 
+/**
+ * Protects routes by checking authentication status
+ */
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
+/**
+ * Main application component with routing
+ */
 const App: React.FC = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/register" element={<Register />} />
+        {/* Public Routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Protected Routes */}
         <Route
-          path="/projects"
+          path="/"
           element={
             <ProtectedRoute>
-              <ProjectsDashboard />
+              <TasksDashboard />
             </ProtectedRoute>
           }
         />
@@ -62,9 +70,8 @@ const App: React.FC = () => {
             </ProtectedRoute>
           }
         />
-        <Route path="/" element={<ProtectedRoute><ProjectsDashboard /></ProtectedRoute>} />
       </Routes>
-      <ToastContainer position='bottom-right' autoClose={5000} />
+      <ToastContainer position="bottom-right" autoClose={3000} />
     </Router>
   );
 };

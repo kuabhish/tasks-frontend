@@ -1,17 +1,19 @@
+// types/project.ts
 export interface Project {
   id: string;
-  customerId: string;
+  customer_id: string;
   title: string;
-  description: string;
-  projectManagerId: string;
+  description?: string;
+  project_manager_id: string;
   status: 'Active' | 'On Hold' | 'Completed';
-  startDate: string;
-  endDate: string | null;
-  budget: number;
-  goals: Record<string, string>;
-  milestones: Record<string, string>;
-  techStack: string[];
-  repositoryUrl: string;
-  createdAt: string;
-  updatedAt: string;
+  start_date?: string;
+  end_date?: string;
+  budget?: number;
+  goals?: Record<string, string>;
+  milestones?: Record<string, string>;
+  tech_stack?: string[];
+  repository_url?: string;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
 }

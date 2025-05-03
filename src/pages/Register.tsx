@@ -23,7 +23,7 @@ const Register: React.FC = () => {
       const { user, token } = response.data.data;
       setUser(user, token);
       toast.success('Registration successful!');
-      navigate('/projects');
+      navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
       toast.error(err.response?.data?.message || 'Registration failed');

@@ -1,20 +1,24 @@
 import { create } from 'zustand';
-import { Task } from '../types/task';
+import { Task, Subtask } from '../types/task';
 
-interface TaskStore {
+interface TaskState {
   tasks: Task[];
+  projectStats: { total_tasks: number; total_subtasks: number; completed_subtasks: number; completion_rate: number } | null;
   setTasks: (tasks: Task[]) => void;
+  setProjectStats: (stats: { total_tasks: number; total_subtasks: number; completed_subtasks: number; completion_rate: number }) => void;
   addTask: (task: Task) => void;
-  addSubtask: (taskId: string, subtask: Task['subtasks'][0]) => void;
-  updateTask: (taskId: string, updatedTask: Task) => void;
-  updateSubtask: (taskId: string, subtaskId: string, updatedSubtask: Task['subtasks'][0]) => void;
+  addSubtask: (taskId: string, subtask: Subtask) => void;
+  updateTask: (taskId: string, task: Partial<Task>) => void;
+  updateSubtask: (taskId: string, subtaskId: string, subtask: Partial<Subtask>) => void;
   deleteTask: (taskId: string) => void;
   deleteSubtask: (taskId: string, subtaskId: string) => void;
 }
 
-const useTaskStore = create<TaskStore>((set) => ({
+const useTaskStore = create<TaskState>((set) => ({
   tasks: [],
+  projectStats: null,
   setTasks: (tasks) => set({ tasks }),
+  setProjectStats: (projectStats) => set({ projectStats }),
   addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
   addSubtask: (taskId, subtask) =>
     set((state) => ({
@@ -27,7 +31,7 @@ const useTaskStore = create<TaskStore>((set) => ({
   updateTask: (taskId, updatedTask) =>
     set((state) => ({
       tasks: state.tasks.map((task) =>
-        task.id === taskId ? updatedTask : task
+        task.id === taskId ? { ...task, ...updatedTask } : task
       ),
     })),
   updateSubtask: (taskId, subtaskId, updatedSubtask) =>
@@ -37,7 +41,7 @@ const useTaskStore = create<TaskStore>((set) => ({
           ? {
             ...task,
             subtasks: task.subtasks.map((subtask) =>
-              subtask.id === subtaskId ? updatedSubtask : subtask
+              subtask.id === subtaskId ? { ...subtask, ...updatedSubtask } : subtask
             ),
           }
           : task

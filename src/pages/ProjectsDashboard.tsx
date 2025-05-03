@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import ProjectCard from '../components/ProjectCard';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
@@ -11,22 +11,30 @@ import { Project } from '../types/project';
 import Button from '../components/ui/Button';
 import { PlusIcon } from 'lucide-react';
 
+/**
+ * Projects dashboard component
+ */
 const ProjectsDashboard: React.FC = () => {
   const { projects, setProjects } = useProjectStore();
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('All');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loadProjects = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetchProjects();
+      setProjects(response.data.data);
+    } catch (err) {
+      // Error handled in api.ts
+    } finally {
+      setIsLoading(false);
+    }
+  }, [setProjects]);
 
   useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        const response = await fetchProjects();
-        setProjects(response.data.data);
-      } catch (err: any) {
-        toast.error(err.response?.data?.message || 'Failed to fetch projects');
-      }
-    };
     loadProjects();
-  }, [setProjects]);
+  }, [loadProjects]);
 
   const handleOpenProjectModal = () => {
     setIsProjectModalOpen(true);
@@ -49,14 +57,18 @@ const ProjectsDashboard: React.FC = () => {
       setProjects([...projects, response.data.data.project]);
       toast.success('Project created successfully!');
       handleCloseProjectModal();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to create project');
+    } catch (err) {
+      // Error handled in api.ts
     }
   };
 
-  const filteredProjects = filterStatus === 'All'
-    ? projects
-    : projects.filter((project) => project.status === filterStatus);
+  const filteredProjects = useMemo(
+    () =>
+      filterStatus === 'All'
+        ? projects
+        : projects.filter((project) => project.status === filterStatus),
+    [projects, filterStatus]
+  );
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -83,11 +95,17 @@ const ProjectsDashboard: React.FC = () => {
               </Button>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProjects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="text-center text-gray-500">Loading projects...</div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="text-center text-gray-500">No projects found.</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProjects.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))}
+            </div>
+          )}
         </main>
       </div>
       <Modal

@@ -1,34 +1,36 @@
+// types/task.ts
 export interface Task {
   id: string;
-  customerId: string;
-  projectId: string;
-  categoryId?: string;
+  customer_id: string;
+  project_id: string;
+  category_id?: string;
   title: string;
   description?: string;
   status: 'Not Started' | 'In Progress' | 'Completed';
   priority: 'Low' | 'Medium' | 'High';
-  dueDate?: string;
+  due_date?: string;
   tags?: string[];
-  estimatedDuration?: number;
-  actualDuration?: number;
-  createdAt: string;
-  updatedAt: string;
+  estimated_duration?: number;
+  actual_duration?: number;
+  created_at: string;
+  updated_at: string;
   subtasks: Subtask[];
+  completion_percentage?: number;
 }
 
 export interface Subtask {
   id: string;
-  taskId: string;
+  task_id: string;
   title: string;
   description?: string;
   status: 'Not Started' | 'In Progress' | 'Completed';
-  assignedUserId?: string;
-  assignedTeamId?: string;
-  dueDate?: string;
+  assigned_user_id?: string;
+  assigned_team_id?: string;
+  due_date?: string;
   tags?: string[];
-  estimatedDuration?: number;
-  createdAt: string;
-  updatedAt: string;
+  estimated_duration?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface TimeEntry {
@@ -41,11 +43,4 @@ export interface TimeEntry {
   duration: number;
   notes?: string;
   createdAt: string;
-  subtask?: Subtask;
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  color: string;
 }
