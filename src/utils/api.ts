@@ -6,8 +6,8 @@ import { Task, Subtask, TimeEntry } from '../types/task';
 import { Team } from '../types/team';
 import { User } from '../types/user';
 
-const API_URL_V1 = 'http://127.0.0.1:5000/api/v1';
-// const API_URL_V1 = 'https://easelake.com/api/v1'
+// const API_URL_V1 = 'http://127.0.0.1:5000/api/v1';
+const API_URL_V1 = 'https://easelake.com/api/v1'
 
 const api = axios.create({
   baseURL: API_URL_V1,
