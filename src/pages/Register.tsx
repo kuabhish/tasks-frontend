@@ -22,8 +22,8 @@ const Register: React.FC = () => {
       const response = await register(data);
       const { user, token } = response.data.data;
       setUser(user, token);
-      toast.success('Registration successful!');
-      navigate('/');
+      toast.success('Registration successful! Please log in.');
+      navigate('/login'); // Redirect to login page
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
       toast.error(err.response?.data?.message || 'Registration failed');

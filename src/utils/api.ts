@@ -7,7 +7,7 @@ import { Team } from '../types/team';
 import { User } from '../types/user';
 
 // const API_URL_V1 = 'http://127.0.0.1:5000/api/v1';
-const API_URL_V1 = 'https://easelake.com/api/v1'
+const API_URL_V1 = 'https://easelake.com/api/v1';
 
 const api = axios.create({
   baseURL: API_URL_V1,
@@ -25,10 +25,69 @@ api.interceptors.request.use((config) => {
 });
 
 /**
+ * Interceptor to handle 401 errors and refresh token
+ */
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (token) {
+      prom.resolve(token);
+    } else {
+      prom.reject(error);
+    }
+  });
+  failedQueue = [];
+};
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as any;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const { token: currentToken } = useAuthStore.getState();
+        const response = await axios.post(`${API_URL_V1}/auth/refresh`, {}, {
+          headers: { Authorization: `Bearer ${currentToken}` },
+        });
+        const newToken = response.data.data.token;
+        useAuthStore.getState().setToken(newToken); // Update token in store
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        processQueue(null, newToken);
+        isRefreshing = false;
+        return api(originalRequest); // Retry original request
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        isRefreshing = false;
+        useAuthStore.getState().logout(); // Clear auth store
+        toast.error('Session expired. Please log in again.');
+        window.location.href = '/login'; // Redirect to login
+        return Promise.reject(refreshError);
+      }
+    }
+    return handleApiError(error);
+  }
+);
+
+/**
  * Centralized error handler
  */
 const handleApiError = (error: AxiosError): never => {
-  // Use unknown for response data and safely access message
   const message = (error.response?.data as any)?.message || 'An unexpected error occurred';
   toast.error(message);
   throw error;
