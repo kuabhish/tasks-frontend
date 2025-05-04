@@ -5,7 +5,7 @@ import { Project } from '../types/project';
 import { toast } from 'react-toastify';
 import Modal from './Modal';
 import Button from './ui/Button';
-import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon, FolderIcon, ClockIcon, UsersIcon, UserIcon } from 'lucide-react';
+import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon, FolderIcon, ClockIcon, UsersIcon, UserIcon, BarChartIcon } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import ConfirmDialog from './ConfirmDailog';
 
@@ -36,15 +36,15 @@ const Sidebar: React.FC = () => {
 
   const handleCreateProject = async (data: {
     title: string;
-    description?: string;
+    description?: string | null;
     status?: string;
-    start_date?: string;
-    tech_stack?: string[];
-    repository_url?: string;
-    end_date?: string;
-    budget?: number;
-    goals?: Record<string, string>;
-    milestones?: Record<string, string>;
+    start_date?: string | null;
+    tech_stack?: string[] | null;
+    repository_url?: string | null;
+    end_date?: string | null;
+    budget?: string | null;
+    goals?: Record<string, string> | null;
+    milestones?: Record<string, string> | null;
   }) => {
     try {
       const response = await createProject(data);
@@ -58,15 +58,15 @@ const Sidebar: React.FC = () => {
 
   const handleUpdateProject = async (projectId: string, data: Partial<{
     title: string;
-    description?: string;
+    description?: string | null;
     status?: string;
-    start_date?: string;
-    tech_stack?: string[];
-    repository_url?: string;
-    end_date?: string;
-    budget?: number;
-    goals?: Record<string, string>;
-    milestones?: Record<string, string>;
+    start_date?: string | null;
+    tech_stack?: string[] | null;
+    repository_url?: string | null;
+    end_date?: string | null;
+    budget?: string | null;
+    goals?: Record<string, string> | null;
+    milestones?: Record<string, string> | null;
   }>) => {
     try {
       const response = await updateProject(projectId, data);
@@ -94,6 +94,7 @@ const Sidebar: React.FC = () => {
 
   const openCreateModal = () => setIsProjectModalOpen('create');
   const openEditModal = (project: Project) => {
+    console.log("project ", project);
     setEditingProject(project);
     setIsProjectModalOpen('edit');
   };
@@ -101,6 +102,32 @@ const Sidebar: React.FC = () => {
   const closeModal = () => {
     setIsProjectModalOpen(null);
     setEditingProject(null);
+  };
+
+  // Helper function to format non-ISO date to YYYY-MM-DD for input
+  const formatDateForInput = (date?: string | null): string | undefined => {
+    if (!date) return undefined; // Handle null or undefined
+    try {
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) return undefined; // Invalid date
+      return parsedDate.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+    } catch {
+      return undefined; // Handle parsing errors
+    }
+  };
+
+  // Helper function to convert YYYY-MM-DD to YYYY-MM-DDTHH:mm:ss for backend
+  const formatDateForBackend = (date?: string | null): string | null => {
+    if (!date) return null;
+    try {
+      // Assume date is YYYY-MM-DD from input
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) return null; // Invalid date
+      // Format as YYYY-MM-DDTHH:mm:ss (e.g., 2025-05-02T00:00:00)
+      return `${parsedDate.getUTCFullYear()}-${String(parsedDate.getUTCMonth() + 1).padStart(2, '0')}-${String(parsedDate.getUTCDate()).padStart(2, '0')}T00:00:00`;
+    } catch {
+      return null; // Handle invalid dates
+    }
   };
 
   return (
@@ -216,6 +243,17 @@ const Sidebar: React.FC = () => {
           Timeline
         </NavLink>
         <NavLink
+          to="/gantt"
+          className={({ isActive }) =>
+            `flex items-center text-sm text-gray-700 hover:bg-indigo-50 rounded-md px-3 py-2 transition-colors duration-200 ${isActive ? 'bg-indigo-100 text-indigo-800 font-medium' : ''
+            }`
+          }
+          aria-label="Gantt Dashboard"
+        >
+          <BarChartIcon className="h-4 w-4 mr-2 text-gray-500" />
+          Gantt Dashboard
+        </NavLink>
+        <NavLink
           to="/teams"
           className={({ isActive }) =>
             `flex items-center text-sm text-gray-700 hover:bg-indigo-50 rounded-md px-3 py-2 transition-colors duration-200 ${isActive ? 'bg-indigo-100 text-indigo-800 font-medium' : ''
@@ -251,20 +289,20 @@ const Sidebar: React.FC = () => {
             try {
               const data = {
                 title: formData.get('title') as string,
-                description: formData.get('description') as string,
+                description: formData.get('description') as string || null,
                 status: formData.get('status') as string,
-                start_date: formData.get('start_date') as string,
+                start_date: formatDateForBackend(formData.get('start_date') as string),
                 tech_stack:
-                  formData.get('tech_stack')?.toString().split(',').map((s) => s.trim()) || [],
-                repository_url: formData.get('repository_url') as string,
-                end_date: formData.get('end_date') as string || undefined,
-                budget: formData.get('budget') ? Number(formData.get('budget')) : undefined,
+                  formData.get('tech_stack')?.toString().split(',').map((s) => s.trim()).filter(s => s) || null,
+                repository_url: formData.get('repository_url') as string || null,
+                end_date: formatDateForBackend(formData.get('end_date') as string),
+                budget: formData.get('budget') ? formData.get('budget') as string : null,
                 goals: formData.get('goals')
                   ? JSON.parse(formData.get('goals') as string)
-                  : undefined,
+                  : null,
                 milestones: formData.get('milestones')
                   ? JSON.parse(formData.get('milestones') as string)
-                  : undefined,
+                  : null,
               };
               if (!data.title) throw new Error('Title is required');
               if (data.goals && typeof data.goals !== 'object')
@@ -296,7 +334,7 @@ const Sidebar: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700">Description</label>
               <textarea
                 name="description"
-                defaultValue={editingProject?.description}
+                defaultValue={editingProject?.description ?? ''}
                 rows={4}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-all duration-200"
               />
@@ -305,7 +343,7 @@ const Sidebar: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700">Status</label>
               <select
                 name="status"
-                defaultValue={editingProject?.status}
+                defaultValue={editingProject?.status ?? 'Active'}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-all duration-200"
               >
                 <option value="Active">Active</option>
@@ -318,7 +356,7 @@ const Sidebar: React.FC = () => {
               <input
                 name="start_date"
                 type="date"
-                defaultValue={editingProject?.start_date?.split('T')[0]}
+                defaultValue={formatDateForInput(editingProject?.start_date)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-all duration-200"
               />
             </div>
@@ -327,7 +365,7 @@ const Sidebar: React.FC = () => {
               <input
                 name="end_date"
                 type="date"
-                defaultValue={editingProject?.end_date?.split('T')[0]}
+                defaultValue={formatDateForInput(editingProject?.end_date)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-all duration-200"
               />
             </div>
@@ -335,9 +373,8 @@ const Sidebar: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700">Budget</label>
               <input
                 name="budget"
-                type="number"
-                step="0.01"
-                defaultValue={editingProject?.budget}
+                type="text"
+                defaultValue={editingProject?.budget ?? ''}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-all duration-200"
               />
             </div>
@@ -349,7 +386,7 @@ const Sidebar: React.FC = () => {
                 name="tech_stack"
                 type="text"
                 placeholder="e.g., React, Node.js, Python"
-                defaultValue={editingProject?.tech_stack?.join(',')}
+                defaultValue={editingProject?.tech_stack?.filter(s => s).join(', ') ?? ''}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-all duration-200"
               />
             </div>
@@ -358,7 +395,7 @@ const Sidebar: React.FC = () => {
               <input
                 name="repository_url"
                 type="url"
-                defaultValue={editingProject?.repository_url}
+                defaultValue={editingProject?.repository_url ?? ''}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-all duration-200"
               />
             </div>

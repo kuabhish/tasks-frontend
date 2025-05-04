@@ -6,21 +6,16 @@ import TasksDashboard from './pages/TasksDashboard';
 import TeamsDashboard from './pages/TeamsDashboard';
 import UserProfile from './pages/UserProfile';
 import Timeline from './pages/Timeline';
+import GanttDashboard from './pages/GanttDashboard'; // New import
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import useAuthStore from './store/authStore';
 
-/**
- * Protects routes by checking authentication status
- */
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
-/**
- * Main application component with routing
- */
 const App: React.FC = () => {
   return (
     <Router>
@@ -51,6 +46,14 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Timeline />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/gantt"
+          element={
+            <ProtectedRoute>
+              <GanttDashboard />
             </ProtectedRoute>
           }
         />
