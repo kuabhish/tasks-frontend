@@ -106,7 +106,7 @@ const GanttDashboard: React.FC = () => {
       { type: 'string', label: 'Dependencies' },
     ],
     // Add selected project as the first entry if available and valid
-    ...(selectedProject && isValidDate(selectedProject.start_date) && isValidDate(selectedProject.end_date)
+    ...(selectedProject && isValidDate(selectedProject.start_date)
       ? [
         [
           selectedProject.id,
