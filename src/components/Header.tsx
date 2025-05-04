@@ -23,7 +23,7 @@ const Header: React.FC = () => {
           {/* Logo */}
           <NavLink to="/timeline" className="flex items-center space-x-2">
             <ClockIcon className="h-6 w-6 text-indigo-600" />
-            <h1 className="text-xl font-bold text-gray-900">OptimFlow</h1>
+            <h1 className="text-xl font-bold text-gray-900">EaseLake</h1>
           </NavLink>
 
           {/* Mobile Menu Button */}
